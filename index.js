@@ -27,6 +27,7 @@ client.on("ready", async () => {
   logger("Logged in as " + client.user.tag);
 
   // Get configured play channel
+  /** @type {Discord.TextChannel} */
   const playChannel = await client.channels.fetch(procenv.PLAY_CHANNEL);
   if (!playChannel) {
     logger("Play channel not found!");
@@ -57,7 +58,7 @@ client.on("ready", async () => {
   // and update it every 5 seconds
   setInterval(async () => {
     const gameBoardEmbed = await gameBoard.fetch();
-    gameBoardEmbed.setDescription(await getGameBoard());
+    gameBoardEmbed.setDescription(getGameBoard());
     gameBoardEmbed.setFooter({
       text: "This board will be updated every 5 seconds.",
       icon_url: client.user.avatarURL(),
@@ -127,12 +128,12 @@ client.on("ready", async () => {
         .addOptions(getBalloonOptions())
     );
 
-    const toolSelectionRow = new Discord.MessageActionRow().addComponent(
-      new Discord.MessageSelectionComponent()
+    const toolSelectionRow = new Discord.MessageActionRow().addComponents([
+      new Discord.MessageSelectMenu()
         .setCustomId("which-tool")
         .setPlaceholder("Which action?")
-        .addOptions(getToolOptions())
-    );
+        .addOptions(getToolOptions()),
+    ]);
 
     await playChannel.send({
       embeds: [interactionMessageEmbed],
