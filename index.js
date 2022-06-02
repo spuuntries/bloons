@@ -8,7 +8,8 @@ const procenv = process.env,
   db = (() => {
     const Enmap = require("enmap");
     return new Enmap({ name: "db" });
-  })();
+  })(),
+  utils = require("./utils/utils.js");
 
 function logger(msg) {
   console.log(`[${new Date()}] ${msg}`);
@@ -37,107 +38,154 @@ client.on("ready", async () => {
   // Check if the gameplay board
   // embed is already sent in the channel
   let gameBoard = (await playChannel.messages.fetch({ limit: 100 }))
-    .filter((m) => m.author.id === client.user.id)
-    .find((m) => m.embeds.length > 0);
-  if (!gameBoard) {
-    logger("Gameboard not found, creating...");
-    const gameBoardEmbed = new Discord.MessageEmbed()
+      .filter((m) => m.author.id === client.user.id)
+      .find((m) => m.embeds.length > 0),
+    gameBoardEmbed = new Discord.MessageEmbed()
       .setColor("#0099ff")
       .setTitle("Board")
-      .setDescription(
-        "This is where you can view the current state of the game."
+      .setDescription(utils.getGameBoard())
+      .addField("🎈", "Unpopped", true)
+      .addField("💥", "Popped", true)
+      .addField(
+        "How to play",
+        "Below this message there's a controller, select a balloon to pop it!"
       )
       .setFooter({
-        text: "This board will be updated every 5 seconds.",
+        text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+          //Get UNIX timestamp 5 seconds from now
+          Math.floor((Date.now() + 5000) / 1000)
+        }:R>`,
         icon_url: client.user.avatarURL(),
-      });
-    gameBoard = await playChannel.send(gameBoardEmbed);
+      })
+      .setTimestamp();
+
+  if (!gameBoard) {
+    logger("Gameboard not found, creating...");
+    gameBoardEmbed
+      .setDescription(utils.getGameBoard())
+      .setFooter({
+        text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+          //Get UNIX timestamp 5 seconds from now
+          Math.floor((Date.now() + 5000) / 1000)
+        }:R>`,
+        icon_url: client.user.avatarURL(),
+      })
+      .setTimestamp();
+    gameBoard = await playChannel.send({
+      embeds: [gameBoardEmbed],
+    });
   }
 
-  // Get the game board embed
-  // and update it every 5 seconds
-  setInterval(async () => {
-    const gameBoardEmbed = await gameBoard.fetch();
-    gameBoardEmbed.setDescription(getGameBoard());
-    gameBoardEmbed.setFooter({
-      text: "This board will be updated every 5 seconds.",
+  const balloonRowSelection = new Discord.MessageActionRow().addComponent(
+    new Discord.MessageSelectionComponent()
+      .setCustomId("which-row")
+      .setTitle("Which row is the balloon in?")
+      .setOptions(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"])
+  );
+
+  const balloonColumnSelection = new Discord.MessageActionRow().addComponent(
+    new Discord.MessageSelectionComponent()
+      .setCustomId("which-column")
+      .setTitle("Which column is the balloon in?")
+      .setOptions(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
+  );
+
+  const toolSelectionRow = new Discord.MessageActionRow().addComponent(
+    new Discord.MessageSelectionComponent()
+      .setCustomId("which-tool")
+      .setPlaceholder("Which action?")
+      .addOptions(getToolOptions())
+  );
+
+  const interactionMessageEmbed = new Discord.MessageEmbed()
+    .setColor("#0099ff")
+    .setTitle("Interaction")
+    .setDescription("This is where you can interact with the game.")
+    .setFooter({
+      text: "This message will be updated every 5 seconds.",
       icon_url: client.user.avatarURL(),
     });
-    await gameBoardEmbed.edit(gameBoardEmbed);
-  }, 5000);
 
-  // Get interaction message
-  // and update it every 5 seconds
-  const interactionMessage = await playChannel.messages
+  let interactionMessage = await playChannel.messages
     .fetch({ limit: 100 })
     .then((m) =>
       m
         .filter((m) => m.author.id === client.user.id)
         .find((m) => m.embeds.length > 0)
     );
-  if (!interactionMessage) {
-    logger("Interaction message not found, creating...");
-    const interactionMessageEmbed = new Discord.MessageEmbed()
-      .setColor("#0099ff")
-      .setTitle("Interaction")
-      .setDescription("This is where you can interact with the game.")
-      .setFooter({
-        text: "This message will be updated every 5 seconds.",
-        icon_url: client.user.avatarURL(),
-      });
 
-    const balloonSelectionRow = new Discord.MessageActionRow().addComponent(
-      new Discord.MessageSelectionComponent()
-        .setCustomId("which-balloon")
-        .setPlaceholder("Which balloon?")
-        .addOptions(getBalloonOptions())
-    );
-
-    const toolSelectionRow = new Discord.MessageActionRow().addComponent(
-      new Discord.MessageSelectionComponent()
-        .setCustomId("which-tool")
-        .setPlaceholder("Which action?")
-        .addOptions(getToolOptions())
-    );
-
-    await playChannel.send({
-      embeds: [interactionMessageEmbed],
-      components: [balloonSelectionRow, toolSelectionRow],
-    });
-  }
-
+  // Get the game board embed
+  // and update it every 5 seconds
   setInterval(async () => {
-    try {
-      await interactionMessage.delete();
-    } catch (e) {
-      logger(e);
-    }
-    const interactionMessageEmbed = new Discord.MessageEmbed()
-      .setColor("#0099ff")
-      .setTitle("Interaction")
-      .setDescription("This is where you can interact with the game.")
-      .setFooter({
-        text: "This message will be updated every 5 seconds.",
-        icon_url: client.user.avatarURL(),
+    gameBoard = (await playChannel.messages.fetch({ limit: 100 }))
+      .filter((m) => m.author.id === client.user.id)
+      .find((m) => m.embeds.length > 0);
+
+    if (gameBoard) {
+      gameBoardEmbed
+        .setDescription(utils.getGameBoard())
+        .setFooter({
+          text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+            //Get UNIX timestamp 5 seconds from now
+            Math.floor((Date.now() + 5000) / 1000)
+          }:R>`,
+          icon_url: client.user.avatarURL(),
+        })
+        .setTimestamp();
+      await gameBoard.edit({
+        embeds: [gameBoardEmbed],
       });
+    } else {
+      logger("Gameboard not found, creating...");
+      gameBoardEmbed
+        .setDescription(utils.getGameBoard())
+        .setFooter({
+          text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+            //Get UNIX timestamp 5 seconds from now
+            Math.floor((Date.now() + 5000) / 1000)
+          }:R>`,
+          icon_url: client.user.avatarURL(),
+        })
+        .setTimestamp();
+      playChannel.send({
+        embeds: [gameBoardEmbed],
+      });
+    }
 
-    const balloonSelectionRow = new Discord.MessageActionRow().addComponent(
-      new Discord.MessageSelectionComponent()
-        .setCustomId("which-balloon")
-        .setPlaceholder("Which balloon?")
-        .addOptions(getBalloonOptions())
-    );
+    // Get interaction message
+    // and update it every 5 seconds
+    interactionMessage = await playChannel.messages
+      .fetch({ limit: 100 })
+      .then((m) =>
+        m
+          .filter((m) => m.author.id === client.user.id)
+          .find((m) => m.embeds.length > 0)
+      );
 
-    const toolSelectionRow = new Discord.MessageActionRow().addComponents([
-      new Discord.MessageSelectMenu()
-        .setCustomId("which-tool")
-        .setPlaceholder("Which action?")
-        .addOptions(getToolOptions()),
-    ]);
+    if (!interactionMessage) {
+      logger("Interaction message not found, creating...");
 
-    await playChannel.send({
+      await playChannel.send({
+        embeds: [interactionMessageEmbed],
+        components: [
+          balloonRowSelection,
+          balloonColumnSelection,
+          toolSelectionRow,
+        ],
+      });
+    }
+
+    await interactionMessageEmbed.edit({
       embeds: [interactionMessageEmbed],
-      components: [balloonSelectionRow, toolSelectionRow],
+      components: [
+        balloonRowSelection,
+        balloonColumnSelection,
+        toolSelectionRow,
+      ],
     });
   }, 5000);
 });
