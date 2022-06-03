@@ -58,6 +58,19 @@ The next board will be sent in <t:${
         }:R>`,
         icon_url: client.user.avatarURL(),
       })
+      .setTimestamp(),
+    interactionMessageEmbed = new Discord.MessageEmbed()
+      .setColor("#0099ff")
+      .setTitle("Interaction")
+      .setDescription("This is where you can interact with the game.")
+      .setFooter({
+        text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+          //Get UNIX timestamp 5 seconds from now
+          Math.floor((Date.now() + 5000) / 1000)
+        }:R>`,
+        icon_url: client.user.avatarURL(),
+      })
       .setTimestamp();
 
   if (!gameBoard) {
@@ -82,7 +95,15 @@ The next board will be sent in <t:${
     new Discord.MessageSelectionComponent()
       .setCustomId("which-row")
       .setTitle("Which row is the balloon in?")
-      .setOptions(["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"])
+      .setOptions(
+        (() => {
+          let a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+          // Return a as an array of strings corresponding to number of rows in the game board
+          return a
+            .split("")
+            .slice(0, utils.getGameBoard().split("\n").length - 1);
+        })()
+      )
   );
 
   const balloonColumnSelection = new Discord.MessageActionRow().addComponent(
@@ -98,15 +119,6 @@ The next board will be sent in <t:${
       .setPlaceholder("Which action?")
       .addOptions(getToolOptions())
   );
-
-  const interactionMessageEmbed = new Discord.MessageEmbed()
-    .setColor("#0099ff")
-    .setTitle("Interaction")
-    .setDescription("This is where you can interact with the game.")
-    .setFooter({
-      text: "This message will be updated every 5 seconds.",
-      icon_url: client.user.avatarURL(),
-    });
 
   let interactionMessage = await playChannel.messages
     .fetch({ limit: 100 })
@@ -168,6 +180,17 @@ The next board will be sent in <t:${
 
     if (!interactionMessage) {
       logger("Interaction message not found, creating...");
+      interactionMessageEmbed
+        .setFooter({
+          text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+            //Get UNIX timestamp 5 seconds from now
+            Math.floor((Date.now() + 5000) / 1000)
+          }:R>`,
+          icon_url: client.user.avatarURL(),
+        })
+
+        .setTimestamp();
 
       await playChannel.send({
         embeds: [interactionMessageEmbed],
@@ -177,15 +200,24 @@ The next board will be sent in <t:${
           toolSelectionRow,
         ],
       });
-    }
+    } else {
+      interactionMessageEmbed.setFooter({
+        text: `This board is updated every 5 seconds.
+The next board will be sent in <t:${
+          //Get UNIX timestamp 5 seconds from now
+          Math.floor((Date.now() + 5000) / 1000)
+        }:R>`,
+        icon_url: client.user.avatarURL(),
+      });
 
-    await interactionMessageEmbed.edit({
-      embeds: [interactionMessageEmbed],
-      components: [
-        balloonRowSelection,
-        balloonColumnSelection,
-        toolSelectionRow,
-      ],
-    });
+      await interactionMessageEmbed.edit({
+        embeds: [interactionMessageEmbed],
+        components: [
+          balloonRowSelection,
+          balloonColumnSelection,
+          toolSelectionRow,
+        ],
+      });
+    }
   }, 5000);
 });
