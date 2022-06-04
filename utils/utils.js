@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 // Game board utility functions
 const db = (() => {
     const Enmap = require("enmap");
@@ -6,7 +8,7 @@ const db = (() => {
   crypto = require("crypto"),
   unbApi = (() => {
     const { Client } = require("unb-api");
-    return new Client(process.env.UNB_API_TOKEN);
+    return new Client(process.env.UNB_TOKEN);
   })();
 
 module.exports = {
@@ -46,12 +48,12 @@ module.exports = {
       // the letter should be the same as the index in the alphabet
       if (i % 10 == 0 || i == 0) {
         ret = `${(() => {
-          let a = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+          let a = "🇦🇧🇨🇩🇪🇫🇬🇭🇮🇯";
           return a[(i / 11) % a.length];
         })()}${ret}`;
       }
 
-      // If index is mod 10, return a newline at the end
+      // If index is mod 9, return a newline at the end
       if (i % 9 == 0) {
         ret = `${ret}\n`;
       }
@@ -64,29 +66,30 @@ module.exports = {
         // Get number of columns and prepend an array of
         // number emojis to the board state
 
-        // Slice the board state into chunks of 10
-        let chunks = gameBoard.board.map((balloon, i) => {
-            return gameBoard.board.slice(i * 10, i * 10 + 10);
-          }),
-          // Get the number of columns
-          numCols = chunks[0].length;
-        return Array(numCols).map((_, i) => {
-          let nums = [
-            "1️⃣",
-            "2️⃣",
-            "3️⃣",
-            "4️⃣",
-            "5️⃣",
-            "6️⃣",
-            "7️⃣",
-            "8️⃣",
-            "9️⃣",
-            "🔟",
-          ];
-          return nums[i];
-        });
-      })()
+        // Get number of columns
+        let numCols = gameBoard.board.slice(0, 9).length;
+        return Array(numCols)
+          .fill()
+          .map((_, i) => {
+            let nums = [
+              "1️⃣",
+              "2️⃣",
+              "3️⃣",
+              "4️⃣",
+              "5️⃣",
+              "6️⃣",
+              "7️⃣",
+              "8️⃣",
+              "9️⃣",
+              "🔟",
+            ];
+            return nums[i];
+          });
+      })(),
+      "\n"
     );
+
+    boardState.unshift("🟦");
 
     // Return the board state
     return boardState.join("");
@@ -210,5 +213,38 @@ module.exports = {
 
     // Return the result of the pop
     return res;
+  },
+  removeBalloon: (column, row) => {
+    // Ensure a gameboard exists
+    /**
+     * @type {{
+     *   board: {
+     *     id: string,
+     *     meta: {
+     *       material: string,
+     *       reward: number,
+     *     },
+     *     state: string
+     *   }[]
+     * }}
+     */
+    let gameBoard = db.ensure("gameBoard", {
+      board: [],
+    });
+
+    // Get the balloon to remove
+    let balloon = gameBoard.board[column * 10 + row];
+
+    // If balloon doesn't exist, return false
+    if (!balloon) return false;
+
+    // Remove the balloon
+    gameBoard.board.splice(column * 10 + row, 1);
+
+    // Save the board
+    db.set("gameBoard", gameBoard);
+
+    // Return true
+    return true;
   },
 };

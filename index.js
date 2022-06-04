@@ -101,7 +101,7 @@ The next board will be sent in <t:${
           // Return a as an array of strings corresponding to number of rows in the game board
           return a
             .split("")
-            .slice(0, utils.getGameBoard().split("\n").length - 1);
+            .slice(0, utils.getGameBoard().split("\n").length - 2);
         })()
       )
   );
@@ -110,7 +110,15 @@ The next board will be sent in <t:${
     new Discord.MessageSelectionComponent()
       .setCustomId("which-column")
       .setTitle("Which column is the balloon in?")
-      .setOptions(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"])
+      .setOptions(
+        (() => {
+          let a = "12345678910";
+          // Return a as an array of strings corresponding to number of columns in the game board
+          return a
+            .split("")
+            .slice(0, utils.getGameBoard().split("\n")[0].length - 2);
+        })()
+      )
   );
 
   const toolSelectionRow = new Discord.MessageActionRow().addComponent(
